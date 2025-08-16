@@ -5,7 +5,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/prally.svg)](https://crates.io/crates/prally)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://img.shields.io/github/workflow/status/your-username/prally/CI)](https://github.com/your-username/prally/actions)
+[![Build](https://github.com/capthiron/prally/actions/workflows/build.yml/badge.svg)](https://github.com/capthiron/prally/actions/workflows/build.yml)
 
 *Because every developer deserves a supportive ally in their workflow* 💜
 </div>
