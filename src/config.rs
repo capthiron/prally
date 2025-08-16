@@ -41,6 +41,7 @@ pub struct LlmConfig {
     pub provider: String,
     pub model: String,
     pub max_tokens: u32,
+    pub system_instruction: Option<String>,
 }
 
 impl Default for Config {
@@ -57,6 +58,7 @@ impl Default for Config {
                 provider: "openai".to_string(),
                 model: "gpt-4".to_string(),
                 max_tokens: 2000,
+                system_instruction: None,
             },
         }
     }

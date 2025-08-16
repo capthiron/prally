@@ -146,7 +146,7 @@ pub async fn execute(
     });
 
     // Generate the response
-    let response = llm_provider.generate(request).await?;
+    let response = llm_provider.generate(&config, request).await?;
 
     // Cancel the spinner and show completion
     spinner_task.abort();
@@ -255,30 +255,61 @@ async fn get_auto_task_info(git: &GitRepository, config: &Config) -> Result<(Str
 
 fn build_pr_description_template() -> String {
     r#"
-You are an expert technical writer helping create a pull request description.
-Based on the provided context, create a clear, comprehensive PR description that includes:
+Based on the provided context, create a clear, comprehensive PR description using this structure:
 
-## Summary
-A brief overview of what this PR accomplishes
+## Any closed tickets?
+[[TICKET-NUMBER] TICKET TITLE](https://someURL)
 
-## Changes
-- List the key changes made
-- Focus on the what and why, not just the how
-- Use bullet points for clarity
+## Dependencies?
+Reference one or more tickets in your issue tracker if appropriate.
 
-## Context
-Any relevant background information that reviewers should know
+## What?
+Explain the changes you've made.
+It doesn't need to be fancy and you don't have to get too technical, yet.
+Just explicit prose on your net change will typically suffice.
+At a high level, this is where you let the reviewer know the overall
+effect of the PR.
 
-## Testing
-How these changes have been tested (if applicable)
+## Why?
+The "why" tells us what business or engineering goal this change achieves.
+It's the reason we get paid as developers.
+The "why" is a chance to explain both the engineering goal,
+but also some business objective that is satisfied or moved along.
+
+## How?
+Of course, the PR diff will tell most of the story of the "how",
+but make sure to draw attention to the significant design decisions.
+You decided to write a recursive method instead of a loop,
+pointing out the merits of this will help the reviewer understand your
+reasoning and in turn provide a better review.
+
+## Testing?
+If your team includes applicable tests alongside updates to your code
+(and you should), merging code without tests or changes that cause existing
+tests to fail will typically get caught by a teammate or build management tool.
+You may optionally move the tests to another commit and another PR, but that
+fans out your liability if things go wrong. Also, you won't be taking
+advantage of your CI/CD process if you merge in separate batches, as the
+first, test-less commit won't even cause your pipeline do anything different.
+
+## Screenshots (optional)
+Of course, screenshots are especially helpful for UI-related changes.
+A simple screenshot of the before and after, or of the current
+state vs. your local development view, helps the reviewer tremendously.
+They're some of my favorite reviews to do.
+
+## Anything Else? (optional)
+You may want to delve into possible architecture changes or
+technical debt here. Call out challenges, optimizations, etc.
 
 Guidelines:
-- Be concise but informative
-- Use a professional but friendly tone
-- Focus on the value and impact of the changes
-- Make it easy for reviewers to understand what they're reviewing
+- Fill in each section based on the provided context (git diff, commit messages, task information, etc.)
+- Be specific and helpful to reviewers
+- If a section doesn't apply, you can skip it or mark it as "N/A"
+- Use the context to populate ticket numbers and URLs where available
+- Focus on clarity and completeness
 
-Context will be provided below. Use it to craft a thoughtful PR description.
+Context will be provided below. Use it to craft a thoughtful PR description following this template.
 "#
     .trim()
     .to_string()
@@ -317,12 +348,17 @@ mod tests {
     fn test_build_pr_description_template() {
         let template = build_pr_description_template();
 
-        assert!(template.contains("## Summary"));
-        assert!(template.contains("## Changes"));
-        assert!(template.contains("## Context"));
-        assert!(template.contains("## Testing"));
-        assert!(template.contains("Be concise but informative"));
-        assert!(template.contains("Use a professional but friendly tone"));
+        assert!(template.contains("## Any closed tickets?"));
+        assert!(template.contains("## Dependencies?"));
+        assert!(template.contains("## What?"));
+        assert!(template.contains("## Why?"));
+        assert!(template.contains("## How?"));
+        assert!(template.contains("## Testing?"));
+        assert!(template.contains("## Screenshots (optional)"));
+        assert!(template.contains("## Anything Else? (optional)"));
+        assert!(template.contains("Guidelines:"));
+        assert!(template.contains("Fill in each section based on the provided context"));
+        assert!(template.contains("Focus on clarity and completeness"));
     }
 
     mod get_manual_task_info_tests {
@@ -679,10 +715,14 @@ mod tests {
         fn should_contain_all_required_sections() {
             let template = build_pr_description_template();
 
-            assert!(template.contains("## Summary"));
-            assert!(template.contains("## Changes"));
-            assert!(template.contains("## Context"));
-            assert!(template.contains("## Testing"));
+            assert!(template.contains("## Any closed tickets?"));
+            assert!(template.contains("## Dependencies?"));
+            assert!(template.contains("## What?"));
+            assert!(template.contains("## Why?"));
+            assert!(template.contains("## How?"));
+            assert!(template.contains("## Testing?"));
+            assert!(template.contains("## Screenshots (optional)"));
+            assert!(template.contains("## Anything Else? (optional)"));
         }
 
         #[test]
@@ -690,9 +730,8 @@ mod tests {
             let template = build_pr_description_template();
 
             assert!(template.contains("Guidelines:"));
-            assert!(template.contains("Be concise but informative"));
-            assert!(template.contains("Use a professional but friendly tone"));
-            assert!(template.contains("Focus on the value and impact"));
+            assert!(template.contains("Fill in each section based on the provided context"));
+            assert!(template.contains("Focus on clarity and completeness"));
         }
 
         #[test]
@@ -711,21 +750,21 @@ mod tests {
             assert_eq!(template, template.trim());
 
             // Check that it contains the expected structure
-            assert!(template.starts_with("You are an expert technical writer"));
+            assert!(template.starts_with("Based on the provided context, create a clear, comprehensive PR description using this structure:"));
         }
 
         #[test]
         fn should_include_bullet_points_guidance() {
             let template = build_pr_description_template();
 
-            assert!(template.contains("Use bullet points for clarity"));
+            assert!(template.contains("Be specific and helpful to reviewers"));
         }
 
         #[test]
         fn should_include_reviewer_consideration() {
             let template = build_pr_description_template();
 
-            assert!(template.contains("Make it easy for reviewers to understand"));
+            assert!(template.contains("Focus on clarity and completeness"));
         }
     }
 

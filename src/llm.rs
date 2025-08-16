@@ -6,6 +6,25 @@ use crate::context::{ContextGroup, ContextUri};
 use crate::error::{PrallyError, Result};
 use std::collections::HashMap;
 
+/// Global default system instruction for all AI providers
+pub fn get_default_system_instruction() -> String {
+    "You are an expert developer assistant that helps generate high-quality pull request descriptions. Your responses should be helpful, inclusive, and supportive of all developers.".to_string()
+}
+
+/// Get the system instruction from config or use the global default
+pub fn get_system_instruction(config: &Config, request_instruction: Option<&String>) -> String {
+    // Priority: request-specific > config > global default
+    if let Some(instruction) = request_instruction {
+        return instruction.clone();
+    }
+
+    if let Some(instruction) = &config.llm.system_instruction {
+        return instruction.clone();
+    }
+
+    get_default_system_instruction()
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LlmRequest {
     pub prompt_template: String,
@@ -28,7 +47,7 @@ pub struct UsageStats {
 
 #[async_trait]
 pub trait LlmProvider {
-    async fn generate(&self, request: LlmRequest) -> Result<LlmResponse>;
+    async fn generate(&self, config: &Config, request: LlmRequest) -> Result<LlmResponse>;
     async fn get_api_key(&self) -> Result<String>;
 }
 
@@ -49,17 +68,11 @@ impl OpenAiProvider {
         Self::new(config.llm.model.clone())
     }
 
-    fn build_prompt(&self, request: &LlmRequest) -> String {
+    fn build_input(&self, request: &LlmRequest) -> String {
         let mut template = request.prompt_template.clone();
 
         // Create placeholder replacements based on context
         let mut replacements = HashMap::new();
-
-        // Add system instruction
-        replacements.insert(
-            "SYSTEM_INSTRUCTION".to_string(),
-            "You are an expert developer assistant that helps generate high-quality pull request descriptions. Your responses should be helpful, inclusive, and supportive of all developers.".to_string()
-        );
 
         // Process consolidated placeholders
         replacements.insert("INSTRUCTION".to_string(), request.context.get_instruction_content());
@@ -134,24 +147,22 @@ impl OpenAiProvider {
 
 #[async_trait]
 impl LlmProvider for OpenAiProvider {
-    async fn generate(&self, request: LlmRequest) -> Result<LlmResponse> {
+    async fn generate(&self, config: &Config, request: LlmRequest) -> Result<LlmResponse> {
         let api_key = self.get_api_key().await?;
-        let prompt = self.build_prompt(&request);
+        let input = self.build_input(&request);
+
+        // Use the global system instruction function
+        let instructions = get_system_instruction(config, None);
 
         let payload = serde_json::json!({
             "model": self.model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            "max_tokens": request.max_tokens,
-            "temperature": 0.7
+            "reasoning": {"effort": "low"},
+            "instructions": instructions,
+            "input": input
         });
 
         let response = self.client
-            .post("https://api.openai.com/v1/chat/completions")
+            .post("https://api.openai.com/v1/responses")
             .bearer_auth(&api_key)
             .json(&payload)
             .send()
@@ -165,7 +176,7 @@ impl LlmProvider for OpenAiProvider {
 
         let json: serde_json::Value = response.json().await?;
 
-        let content = json["choices"][0]["message"]["content"]
+        let content = json["output"]
             .as_str()
             .unwrap_or("")
             .to_string();
