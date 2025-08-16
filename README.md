@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/images/prally.jpeg" alt="prally mascot" width="200" height="200" />
+  <img src="docs/images/prally.jpeg" alt="prally mascot" width="384" height="384" />
 
 **A CLI ally for modern Git pull request workflows** ✨
 
