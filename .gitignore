@@ -1,0 +1,27 @@
+/target
+# Standard Rust ignores
+**/*.rs.bk
+margo.toml.orig
+
+# Byproducts of 'cargo test', 'cargo bench', etc.
+/**/*.dSYM
+**/*.profraw
+**/*.profdata
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Binaries for CLI tools
+*.exe
+*.dll
+*.so
+*.dylib
+*.bin
+*.out
+
+# Misc
+.DS_Store
+*.log
